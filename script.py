@@ -1,10 +1,8 @@
 ###[ Imports ]##################################################################
 
-from ast import While
-from cgitb import text
-import re          # regex
-import requests    # REST calls
-import credentials # import login credentials
+import os         # basic os functions
+import re         # regex
+import requests   # REST calls
 
 # browser automation
 from selenium import webdriver
@@ -16,45 +14,58 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 ###[ Configuration ]############################################################
 
-url_cas_api = 'https://commonchemistry.cas.org/api/detail?cas_rn='
-debug = False
-browser_size = [1280,1280] # windows size in pixels
-browser_wait = 3           # seconds
-
-
-###[ Variables ]################################################################
-
-# cas test numbers
-# cas_number = "67-64-1" # valid cas number, but exists already
-# cas_number = "64-17-5" # valid cas number, not existing yet
-# cas_number = "67-64-2" # cas number does not exist
+filename_credentials = "credentials.py"
+url_cas_api          = "https://commonchemistry.cas.org/api/detail?cas_rn="
+url_dueperthal_base  = "https://app.dueperthal-connect.com"
+debug                = False
+browser_size         = [1280, 1280]   # windows size in pixels
+browser_wait         = 3              # seconds
+cas_number_regex     = "[\d]+-[\d]+-[\d]+"
 
 
 ###[ Functions ]################################################################
 
+def get_dueperthal_credentials():
+    if not os.path.isfile(filename_credentials):
+        print("Düpertal-Connect App Credentials")
+        print("================================")
+        login = input("E-Mail: ")
+        password = input("Password: ")
+        
+        lines = ["login = \"" + login + "\"", "password = \"" + password + "\""]
+        with open(filename_credentials, 'w') as file:
+            for line in lines:
+                file.write(line)
+                file.write('\n')
+    import credentials   # has to be basename of the credential file without file extension
+    return credentials
+
 def get_cas_number():
-    global cas_number
-    cas_number_regex = "[\d]+-[\d]+-[\d]+"
 
     # if cas_number is already defined as a global variable in script
     # use that one and don't ask for another
-    if 'cas_number' in globals():
-        if re.fullmatch(cas_number_regex,cas_number):
-            return cas_number
+    try:
+       cas_number_local = cas_number
+    except:
+        cas_number_local = "none"
+
+    if cas_number_local != "none":
+        if re.fullmatch(cas_number_regex,cas_number_local):
+            return cas_number_local
         else:
-            print('Error: "' + cas_number + '"',"is no valid cas number.")
+            print('Error: "' + cas_number_local + '"',"is no valid cas number.")
             cas_number_valid = False
     else:
         cas_number_valid = False
 
-    while cas_number_valid == False:
-        cas_number = input("CAS-Number: ")
+    while not cas_number_valid:
+        cas_number_local = input("CAS-Number: ")
 
         # check if cas number has a valid pattern
-        if re.fullmatch(cas_number_regex,cas_number):
-            return cas_number
+        if re.fullmatch(cas_number_regex,cas_number_local):
+            return cas_number_local
         else:
-            print('Error: "' + cas_number + '"',"is no valid cas number.")
+            print('Error: "' + cas_number_local + '"',"is no valid cas number.")
 
 def get_data(cas_number_local):
     response = requests.get(url_cas_api + cas_number_local)
@@ -118,14 +129,14 @@ def browser(data):
     browser_driver.implicitly_wait(browser_wait) # seconds
 
     # Login
-    browser_driver.get("https://app.dueperthal-connect.com/login")
+    browser_driver.get(url_dueperthal_base + "/login")
     browser_driver.find_element(By.XPATH,"//input[@type='email']").send_keys(credentials.login)
     browser_driver.find_element(By.XPATH,"//input[@type='password']").send_keys(credentials.password)
     browser_driver.find_element(By.XPATH,"//button[@type='submit']").click()
     browser_driver.find_element(By.XPATH,"//h1")
 
     # Item Catalog
-    browser_driver.get("https://app.dueperthal-connect.com/en/substances/list")
+    browser_driver.get(url_dueperthal_base + "/en/substances/list")
     browser_driver.find_element(By.XPATH,"//input").send_keys(data['name'])
     
     # Test if item already exists
@@ -148,8 +159,21 @@ def browser(data):
     browser_driver.close()
 
 
-###[ Logic ]####################################################################
+###[ Variables ]################################################################
 
+# cas test numbers
+#cas_number = "67-64-1" # valid cas number, but exists already
+#cas_number = "64-17-5" # valid cas number, not existing yet
+#cas_number = "67-64-2" # valid pattern but does not exist
+#cas_number = "abc"     # invalid pattern
+
+
+###[ Script ]###################################################################
+
+script_dir = os.path.dirname(__file__)
+os.chdir(script_dir)
+
+credentials = get_dueperthal_credentials()
 cas_number = get_cas_number()
 data = get_data(cas_number)
 browser(data)
