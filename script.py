@@ -41,11 +41,8 @@ def get_dueperthal_credentials():
         login = input("E-Mail: ")
         password = input("Password: ")
 
-        lines = ['login = "' + login + '"', 'password = "' + password + '"']
         with open(filename_credentials, "w") as file:
-            for line in lines:
-                file.write(line)
-                file.write("\n")
+            file.write(f'login = "{login}"\npassword = "{password}"\n')
     import credentials  # has to be basename of the credential file without file extension
 
     return credentials
